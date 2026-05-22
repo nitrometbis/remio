@@ -1,0 +1,69 @@
+async function generatePDF() {
+  if (!estimateData) return;
+
+  const doc = new jsPDF();
+
+  try {
+    const response = await fetch(
+      "/fonts/Roboto-Regular.ttf"
+    );
+
+    const fontBuffer =
+      await response.arrayBuffer();
+
+    const fontData = btoa(
+      Array.from(new Uint8Array(fontBuffer))
+        .map((b) => String.fromCharCode(b))
+        .join("")
+    );
+
+    doc.addFileToVFS(
+      "Roboto-Regular.ttf",
+      fontData
+    );
+
+    doc.addFont(
+      "Roboto-Regular.ttf",
+      "Roboto",
+      "normal"
+    );
+
+    doc.setFont("Roboto");
+  } catch (e) {
+    console.error("FONT ERROR", e);
+  }
+
+  doc.setFontSize(22);
+
+  doc.text("Kosztorys Remio AI", 20, 20);
+
+  doc.setFontSize(14);
+
+  doc.text(
+    `Metraż: ${estimateData.metraz} m²`,
+    20,
+    40
+  );
+
+  let y = 60;
+
+  estimateData.tasks.forEach((task: any) => {
+    doc.text(
+      `${task.name} - ${task.price} PLN`,
+      20,
+      y
+    );
+
+    y += 10;
+  });
+
+  doc.setFontSize(18);
+
+  doc.text(
+    `Suma: ${estimateData.total} PLN`,
+    20,
+    y + 20
+  );
+
+  doc.save("kosztorys.pdf");
+}
