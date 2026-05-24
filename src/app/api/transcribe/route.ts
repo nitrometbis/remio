@@ -2,11 +2,13 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { PRICE_LIST } from "@/data/pricing";
+import { toFile } from "openai/uploads";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 console.log(
+  "OPENAI KEY:",
   process.env.OPENAI_API_KEY
 );
 
@@ -382,14 +384,26 @@ export async function POST(
 
     // WHISPER
 
-    const transcription =
-      await openai.audio.transcriptions.create(
-        {
-          file,
-          model: "whisper-1",
-          language: "pl",
-        }
-      );
+    const bytes =
+  await file.arrayBuffer();
+
+const buffer =
+  Buffer.from(bytes);
+
+const audioFile =
+  await toFile(
+    buffer,
+    file.name
+  );
+
+const transcription =
+  await openai.audio.transcriptions.create(
+    {
+      file: audioFile,
+      model: "whisper-1",
+      language: "pl",
+    }
+  );
 
     const text =
       transcription.text;
