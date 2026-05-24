@@ -1,3 +1,4 @@
+export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { PRICE_LIST } from "@/data/pricing";
@@ -5,6 +6,9 @@ import { PRICE_LIST } from "@/data/pricing";
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+console.log(
+  process.env.OPENAI_API_KEY
+);
 
 type StandardType =
   | "basic"
@@ -15,25 +19,67 @@ function detectStandard(
   text: string
 ): StandardType {
   const lower =
-    text.toLowerCase();
+    normalizeText(text);
 
-  if (
-    lower.includes("premium") ||
-    lower.includes("luksus") ||
-    lower.includes("złota armatura") ||
-    lower.includes("wielkoformatowe") ||
-    lower.includes("gres 120x60") ||
-    lower.includes("led") ||
-    lower.includes("ogrzewanie podłogowe")
-  ) {
+  let premiumPoints = 0;
+  let basicPoints = 0;
+
+  // PREMIUM FEATURES
+
+  const premiumKeywords = [
+    "złota armatura",
+    "armatura premium",
+    "wielkoformatowe",
+    "120x60",
+    "120x120",
+    "gres premium",
+    "walk in",
+    "walk-in",
+    "deszczownica",
+    "led",
+    "taśmy led",
+    "podłogówka",
+    "ogrzewanie podłogowe",
+    "smart",
+    "lustro led",
+    "kamień naturalny",
+    "spiek",
+    "designerskie",
+    "luksus",
+    "premium",
+  ];
+
+  // BASIC FEATURES
+
+  const basicKeywords = [
+    "tanio",
+    "budżet",
+    "basic",
+    "ekonomicznie",
+    "najtańsze",
+    "prosto",
+    "bez luksusów",
+  ];
+
+  for (const keyword of premiumKeywords) {
+    if (lower.includes(keyword)) {
+      premiumPoints += 1;
+    }
+  }
+
+  for (const keyword of basicKeywords) {
+    if (lower.includes(keyword)) {
+      basicPoints += 1;
+    }
+  }
+
+  // LOGIKA AI
+
+  if (premiumPoints >= 2) {
     return "premium";
   }
 
-  if (
-    lower.includes("budżet") ||
-    lower.includes("tanio") ||
-    lower.includes("basic")
-  ) {
+  if (basicPoints >= 1) {
     return "basic";
   }
 
@@ -425,41 +471,59 @@ ${text}
       "[]";
 
     const cleaned =
-      raw
-        .replace(/```json/g, "")
-        .replace(/```/g, "")
-        .trim();
+  raw
+    .replace(/```json/g, "")
+    .replace(/```/g, "")
+    .trim();
 
-    let parsedTasks: string[] =
-      [];
+let parsedTasks: string[] =
+  [];
 
-    try {
-      parsedTasks =
-        JSON.parse(cleaned);
-    } catch {
-      parsedTasks = [];
-    }
+try {
+  const parsed =
+    JSON.parse(cleaned);
 
-    // PRICING ENGINE
-
-    const tasks =
-      parsedTasks.map(
-        (taskName) =>
-          calculateTask(
-            taskName,
-            metraz,
-            standard
-          )
+  if (
+    Array.isArray(parsed)
+  ) {
+    parsedTasks =
+      parsed.filter(
+        (item) =>
+          typeof item ===
+          "string"
       );
+  } else {
+    parsedTasks = [];
+  }
+} catch (error) {
+  console.error(
+    "AI JSON ERROR",
+    error
+  );
 
-    // SUMMARY
+  parsedTasks = [];
+}
 
-    const laborTotal =
-      tasks.reduce(
-        (sum, task) =>
-          sum + task.labor,
-        0
-      );
+// PRICING ENGINE
+
+const tasks =
+  parsedTasks.map(
+    (taskName) =>
+      calculateTask(
+        taskName,
+        metraz,
+        standard
+      )
+  );
+
+// SUMMARY
+
+const laborTotal =
+  tasks.reduce(
+    (sum, task) =>
+      sum + task.labor,
+    0
+  );
 
     const materialsTotal =
       tasks.reduce(
