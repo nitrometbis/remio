@@ -1,8 +1,9 @@
 export const runtime = "nodejs";
+
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { PRICE_LIST } from "@/data/pricing";
 import { toFile } from "openai/uploads";
+import { PRICE_LIST } from "@/data/pricing";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
