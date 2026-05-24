@@ -372,6 +372,10 @@ export async function POST(
       formData.get(
         "file"
       ) as File;
+      const image =
+  formData.get(
+    "image"
+  ) as File | null;
 
     if (!file) {
       return NextResponse.json(
@@ -408,6 +412,73 @@ const transcription =
 
     const text =
       transcription.text;
+
+      let imageAnalysis = "";
+
+if (image) {
+  const bytes =
+    await image.arrayBuffer();
+
+  const buffer =
+    Buffer.from(bytes);
+
+  const base64 =
+    buffer.toString(
+      "base64"
+    );
+
+  const mimeType =
+    image.type;
+
+  const vision =
+    await openai.chat.completions.create(
+      {
+        model: "gpt-4o-mini",
+
+        messages: [
+          {
+            role: "user",
+
+            content: [
+              {
+                type: "text",
+
+                text: `
+Przeanalizuj zdjęcie łazienki.
+
+Wykryj:
+- standard wykończenia
+- typ płytek
+- walk-in
+- LED
+- armaturę
+- ogrzewanie podłogowe
+- poziom luksusu
+- wielkość łazienki
+
+Odpowiedz krótko po polsku.
+`,
+              },
+
+              {
+                type:
+                  "image_url",
+
+                image_url: {
+                  url: `data:${mimeType};base64,${base64}`,
+                },
+              },
+            ],
+          },
+        ],
+      }
+    );
+
+  imageAnalysis =
+    vision.choices[0]
+      ?.message?.content ||
+    "";
+}
 
     // DETEKCJA STANDARDU
 
@@ -462,6 +533,9 @@ Przykład:
 
 Opis remontu:
 ${text}
+
+Analiza zdjęcia:
+${imageAnalysis}
 `;
 
     const completion =
