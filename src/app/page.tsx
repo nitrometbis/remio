@@ -20,7 +20,7 @@ export default function Home() {
   const [file, setFile] =
     useState<File | null>(null);
 
-    const [image, setImage] =
+      const [image, setImage] =
   useState<File | null>(null);
 
   const [loading, setLoading] =
@@ -186,6 +186,12 @@ const {
         "file",
         file
       );
+if (image) {
+  formData.append(
+    "image",
+    image
+  );
+}
 
       const response =
         await fetch(
@@ -501,7 +507,7 @@ const {
     {...getImageInputProps()}
   />
 
-  <div className="flex flex-col items-center justify-center">
+    <div className="flex flex-col items-center justify-center">
     <div className="text-5xl mb-4">
       🖼️
     </div>
