@@ -1,10 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
 
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 
 (pdfMake as any).vfs =
-  pdfFonts.vfs;
+  (pdfFonts as any).vfs;
 
 export async function POST(
   req: NextRequest
@@ -33,7 +36,12 @@ export async function POST(
 
         {
           text: `Standard: ${estimate.standard}`,
-          margin: [0, 0, 0, 20],
+          margin: [
+            0,
+            0,
+            0,
+            20,
+          ],
         },
 
         ...tasks.flatMap(
@@ -54,7 +62,12 @@ export async function POST(
 
             {
               text: `Suma: ${task.total} PLN`,
-              margin: [0, 0, 0, 10],
+              margin: [
+                0,
+                0,
+                0,
+                10,
+              ],
             },
           ]
         ),
@@ -74,7 +87,12 @@ export async function POST(
         total: {
           fontSize: 18,
           bold: true,
-          margin: [0, 30, 0, 0],
+          margin: [
+            0,
+            30,
+            0,
+            0,
+          ],
         },
       },
 
@@ -85,24 +103,44 @@ export async function POST(
 
     const pdfDoc =
       pdfMake.createPdf(
-        docDefinition
+        docDefinition as any
       );
 
-    const buffer =
-      await new Promise<
-        Buffer
-      >((resolve) => {
-        pdfDoc.getBuffer(
-          (buf: Uint8Array) => {
-            resolve(
-              Buffer.from(buf)
-            );
-          }
-        );
-      });
+    const buffer: any =
+      await new Promise<Buffer>(
+        (resolve) => {
+          const stream =
+            (pdfDoc as any).getStream();
+
+          const chunks: any[] =
+            [];
+
+          stream.on(
+            "data",
+            (
+              chunk: any
+            ) => {
+              chunks.push(
+                chunk
+              );
+            }
+          );
+
+          stream.on(
+            "end",
+            () => {
+              resolve(
+                Buffer.concat(
+                  chunks
+                )
+              );
+            }
+          );
+        }
+      );
 
     return new NextResponse(
-      buffer,
+  buffer as any,
       {
         headers: {
           "Content-Type":
@@ -121,7 +159,9 @@ export async function POST(
         error:
           "Błąd generowania PDF",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
