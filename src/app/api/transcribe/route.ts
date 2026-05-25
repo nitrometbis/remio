@@ -122,6 +122,7 @@ function findBestPrice(
   taskName: string,
   standard: StandardType
 ) {
+  
   const pricing =
     PRICE_LIST[standard];
 
@@ -378,6 +379,8 @@ export async function POST(
   ) as File | null;
 
     if (!file) {
+      
+            
       return NextResponse.json(
         {
           error:
@@ -626,10 +629,75 @@ const laborTotal =
       laborTotal +
       materialsTotal;
 
-    return NextResponse.json({
-      transcription: text,
+    const followUpPrompt = `
+Na podstawie opisu remontu wygeneruj maksymalnie 5 krótkich pytań doprecyzowujących kosztorys łazienki.
 
-      estimate: {
+Pytania mają dotyczyć:
+- hydrauliki,
+- elektryki,
+- ogrzewania,
+- standardu,
+- płytek,
+- sufitu,
+- armatury.
+
+Zwróć WYŁĄCZNIE JSON array stringów.
+
+Przykład:
+[
+  "Czy wymieniasz hydraulikę?",
+  "Czy będzie ogrzewanie podłogowe?"
+]
+
+Opis:
+${text}
+
+Analiza zdjęcia:
+${imageAnalysis}
+`;
+
+const followUpCompletion =
+  await openai.chat.completions.create(
+    {
+      model:
+        "gpt-4o-mini",
+
+      messages: [
+        {
+          role: "user",
+
+          content:
+            followUpPrompt,
+        },
+      ],
+
+      temperature: 0.3,
+    }
+  );
+
+let followUpQuestions =
+  [];
+
+try {
+  followUpQuestions =
+    JSON.parse(
+      followUpCompletion
+        .choices[0]
+        ?.message
+        ?.content ||
+        "[]"
+    );
+} catch {
+  followUpQuestions =
+    [];
+}
+    
+      return NextResponse.json({
+  transcription: text,
+
+  followUpQuestions,
+
+  estimate: {
         metraz,
 
         standard,
