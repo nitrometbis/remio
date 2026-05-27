@@ -3,13 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDropzone } from "react-dropzone";
-
-import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "pdfmake/build/vfs_fonts";
-
 import { supabase } from "@/lib/supabase";
-
-(pdfMake as any).vfs = (pdfFonts as any).vfs;
 
 export default function Home() {
   const router = useRouter();
@@ -118,7 +112,10 @@ export default function Home() {
   }
 
   async function handleUpload() {
-    if (!file) return;
+    if (!file) {
+      alert("Dodaj plik audio");
+      return;
+    }
 
     setLoading(true);
 
@@ -143,26 +140,17 @@ export default function Home() {
       if (!response.ok) {
         console.error(data);
         alert(data.error || "Błąd transkrypcji");
-        setLoading(false);
         return;
       }
 
       setTranscription(data.transcription || "");
       setFollowUpQuestions(data.followUpQuestions || []);
+      setFollowUpAnswers({});
 
-      let parsedEstimate;
-
-      try {
-        parsedEstimate =
-          typeof data.estimate === "string"
-            ? JSON.parse(data.estimate)
-            : data.estimate;
-      } catch (err) {
-        console.error("JSON PARSE ERROR", err);
-        alert("Błąd odczytu kosztorysu AI");
-        setLoading(false);
-        return;
-      }
+      const parsedEstimate =
+        typeof data.estimate === "string"
+          ? JSON.parse(data.estimate)
+          : data.estimate;
 
       setEstimateData(parsedEstimate);
 
@@ -193,9 +181,9 @@ export default function Home() {
     } catch (error) {
       console.error(error);
       alert("Błąd uploadu");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   async function handleFollowUp() {
@@ -225,8 +213,8 @@ export default function Home() {
 
       setEstimateData((prev: any) => ({
         ...prev,
-        tasks: data.tasks,
-        summary: data.summary,
+        tasks: data.tasks || prev.tasks,
+        summary: data.summary || prev.summary,
       }));
 
       alert("Kosztorys zaktualizowany");
@@ -252,71 +240,35 @@ export default function Home() {
   async function generatePDF() {
     if (!estimateData) return;
 
-    const logo = await fetch("/logo.png");
-    const logoBlob = await logo.blob();
+    try {
+      const response = await fetch("/api/pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          estimate: estimateData,
+        }),
+      });
 
-    const logoBase64 = await new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(logoBlob);
-    });
+      if (!response.ok) {
+        alert("Błąd generowania PDF");
+        return;
+      }
 
-    const rows =
-      estimateData.tasks?.map((task: any) => [
-        task.name,
-        `${task.labor} PLN`,
-        `${task.materials} PLN`,
-        `${task.total} PLN`,
-      ]) || [];
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
 
-    const docDefinition: any = {
-      content: [
-        {
-          image: logoBase64,
-          width: 120,
-          margin: [0, 0, 0, 20],
-        },
-        {
-          text: "REMIO AI",
-          style: "header",
-        },
-        {
-          text: "Profesjonalny kosztorys remontu łazienki",
-          margin: [0, 0, 0, 20],
-        },
-        {
-          text: `Metraż: ${estimateData.metraz} m²`,
-        },
-        {
-          text: `Standard: ${estimateData.standard}`,
-          margin: [0, 0, 0, 20],
-        },
-        {
-          table: {
-            headerRows: 1,
-            widths: ["*", "auto", "auto", "auto"],
-            body: [["Zakres prac", "Robocizna", "Materiały", "Suma"], ...rows],
-          },
-        },
-        {
-          text: `SUMA: ${estimateData.summary?.total} PLN`,
-          style: "total",
-        },
-      ],
-      styles: {
-        header: {
-          fontSize: 28,
-          bold: true,
-        },
-        total: {
-          margin: [0, 20, 0, 0],
-          fontSize: 20,
-          bold: true,
-        },
-      },
-    };
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "kosztorys-remio.pdf";
+      a.click();
 
-    pdfMake.createPdf(docDefinition).download("kosztorys-remio.pdf");
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("Błąd pobierania PDF");
+    }
   }
 
   return (
@@ -494,7 +446,6 @@ export default function Home() {
 
               <div className="mt-8 text-2xl font-bold flex justify-between">
                 <span>Suma</span>
-
                 <span>{estimateData.summary?.total?.toFixed(2)} PLN</span>
               </div>
 
